@@ -70,15 +70,36 @@ const v2svg = (json) => {
       let content = ''
       path?.forEach(obj => {
         const { $: x } = obj;
-        let color = ''
+        let attr = ''
+        // https://developer.android.com/reference/android/graphics/drawable/VectorDrawable
         if (x['android:fillColor']?.startsWith('@')) {
           const key = x['android:fillColor']?.split('/').at(-1).replace('$', '')
           def = colorContainer.get(key) || ''
-          color = `url(#${key})`
-        } else {
-          color = color2c(x['android:fillColor'])
+          attr += `fill="url(#${key})"`
+        } else if (x['android:fillColor']) {
+          attr += `fill="${color2c(x['android:fillColor'])}"`
         }
-        content += `\n<path d="${x['android:pathData']}" fill="${color}"/>`
+        if (x['android:strokeColor']) {
+          attr += ` stroke-color="${color2c(x['android:strokeColor'])}"`
+        }
+        if (x['android:strokeWidth']) {
+          attr += ` stroke-width="${x['android:strokeWidth']}"`
+        }
+
+
+
+
+        if (x['android:strokeAlpha']) {
+          attr += ` stroke-opacity="${x['android:strokeAlpha']}"`
+        }
+        if (x['android:fillAlpha']) {
+          attr += ` opacity="${x['android:fillAlpha']}"`
+        }
+
+        if (x['android:fillType']) {
+          attr += ` fill-rule="${x['android:fillType']?.toLowerCase()}"`
+        }
+        content += `\n<path d="${x['android:pathData']}" ${attr}/>`
       })
       if (group) {
         group?.forEach(x => {
