@@ -1,0 +1,22 @@
+{
+  "name": "linear-vector-drawable-to-svg",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "lvd2svg.mjs",
+  "bin": {
+    "lvd2svg": "bin/lvd2svg.mjs"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "xml2js": "^0.6.2"
+  }
+}
