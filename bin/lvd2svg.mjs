@@ -36,6 +36,7 @@ const readXml = (file) => {
   }
 }
 
+//  `#${c}${b}`
 const color2c = str => str?.replace(/^\#([a-fA-F0-9]{2})([a-fA-F0-9]{6})/g, (a, b, c) => `#${c}${b}`)
 const gradient2def = (name, json) => {
   const gradient = json.gradient
@@ -80,7 +81,7 @@ const v2svg = (json) => {
           attr += `fill="${color2c(x['android:fillColor'])}"`
         }
         if (x['android:strokeColor']) {
-          attr += ` stroke-color="${color2c(x['android:strokeColor'])}"`
+          attr += ` stroke="${color2c(x['android:strokeColor'])}"`
         }
         if (x['android:strokeWidth']) {
           attr += ` stroke-width="${x['android:strokeWidth']}"`
