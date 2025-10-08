@@ -37,7 +37,7 @@ const readXml = (file) => {
 }
 
 //  `#${c}${b}`
-const color2c = str => str?.replace(/^\#([a-fA-F0-9]{2})([a-fA-F0-9]{6})/g, (a, b, c) => `#${c}${b}`)
+const color2c = str => str?.replace(/^\#([a-fA-F0-9]{2})([a-fA-F0-9]{6})/g, (a, b, c) => `#${c}`)
 const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
@@ -65,24 +65,33 @@ const v2svg = (json) => {
     const { $: meta } = vector;
 
 
-    const v2str = (v) => {
+    const v2str = (v, lev = 0) => {
       const { path, group } = v;
       let def = ''
       let content = ''
-      path?.forEach(obj => {
+      path?.forEach((obj) => {
         const { $: x } = obj;
         let attr = ''
         // https://developer.android.com/reference/android/graphics/drawable/VectorDrawable
         if (x['android:fillColor']?.startsWith('@')) {
           const key = x['android:fillColor']?.split('/').at(-1).replace('$', '')
-          def = colorContainer.get(key) || ''
+          def += colorContainer.get(key) || ''
           attr += `fill="url(#${key})"`
         } else if (x['android:fillColor']) {
           attr += `fill="${color2c(x['android:fillColor'])}"`
         }
-        if (x['android:strokeColor']) {
+
+
+        if (x['android:strokeColor']?.startsWith('@')) {
+          const key = x['android:strokeColor']?.split('/').at(-1).replace('$', '')
+          def += '\n' + colorContainer.get(key) || ''
+          attr += ` stroke="url(#${key})"`
+        } else if (x['android:strokeColor']) {
           attr += ` stroke="${color2c(x['android:strokeColor'])}"`
         }
+
+
+
         if (x['android:strokeWidth']) {
           attr += ` stroke-width="${x['android:strokeWidth']}"`
         }
@@ -103,17 +112,17 @@ const v2svg = (json) => {
         content += `\n<path d="${x['android:pathData']}" ${attr}/>`
       })
       if (group) {
-        group?.forEach(x => {
+        group?.forEach((x, i) => {
           let attr = '';
           if (x['clip-path']) {
-            x['clip-path']?.forEach((y, i) => {
-              def += `\n<clipPath id="_clippath_${i}">
+            x['clip-path']?.forEach((y, j) => {
+              def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
 <path d="${y['$']['android:pathData']}"/>
 </clipPath>`
+              attr += `clip-path="url(#_clippath_${lev}_${i}_${j})"`
             })
-            attr += `clip-path="url(#_clippath_0)"`
           }
-          const g = v2str(x)
+          const g = v2str(x, lev + 1)
           def += g.def
           content += `\n<g ${attr}>${g.content}\n</g>`
         })
@@ -128,7 +137,7 @@ const v2svg = (json) => {
 
     const defs = def ? `<defs>${def} </defs>` : ''
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 ${meta['android:viewportWidth']} ${meta['android:viewportHeight']}" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 ${meta['android:viewportWidth']} ${meta['android:viewportHeight']}" xmlns="http://www.w3.org/2000/svg" fill="none">
 ${defs}${content}
 </svg>`
   }
