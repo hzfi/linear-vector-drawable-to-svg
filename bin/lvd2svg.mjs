@@ -36,8 +36,30 @@ const readXml = (file) => {
   }
 }
 
+function chunkArray(arr, chunkSize) {
+  const result = [];
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    result.push(arr.slice(i, i + chunkSize));
+  }
+  return result;
+}
+
 //  `#${c}${b}`
-const color2c = str => str?.replace(/^\#([a-fA-F0-9]{2})([a-fA-F0-9]{6})/g, (a, b, c) => `#${c}`)
+// const color2c = str => str?.replace(/^\#([a-fA-F0-9]{2})([a-fA-F0-9]{6})/g, (a, b, c) => `#${c}`)
+// const color2c = str => {
+//   const [alpha, r, g, b] = chunkArray(str.replace('#', ''), 2);
+//   const c = [r, g, b].map(x => parseInt(x, 16)).join(', ')
+//   const alphaVal = parseInt(alpha, 16) / 255
+//   return `rgba(${c}, ${alphaVal})`
+// }
+const color2c = str => {
+  const [alpha, r, g, b] = chunkArray(str.replace('#', ''), 2);
+  const alphaVal = parseInt(alpha, 16) / 255
+  return {
+    c: '#' + [r, g, b].join(''),
+    alpha: alphaVal
+  }
+}
 const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
@@ -46,10 +68,14 @@ const gradient2def = (name, json) => {
       const stopArr = item.map(obj => {
         const { $: x } = obj;
         const offset = x['android:offset']
-        const color = color2c(x['android:color'])
-        return `<stop stop-color="${color}"  offset="${offset}"/>`
+        const { c: color, alpha } = color2c(x['android:color'])
+        return `<stop stop-color="${color}"  stop-opacity="${alpha}"  offset="${Number(offset)}"/>`
       })
-      return `<linearGradient id="${name}" x1="${meta['android:startX']}" x2="${meta['android:endX']}" y1="${meta['android:startY']}" y2="${meta['android:endY']}" >
+      const x1 = Number(meta['android:startX'])
+      const x2 = Number(meta['android:endX'])
+      const y1 = Number(meta['android:startY'])
+      const y2 = Number(meta['android:endY'])
+      return `<linearGradient id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
 </linearGradient>`
 
@@ -71,45 +97,64 @@ const v2svg = (json) => {
       let content = ''
       path?.forEach((obj) => {
         const { $: x } = obj;
-        let attr = ''
+        const attr = {};
         // https://developer.android.com/reference/android/graphics/drawable/VectorDrawable
-        if (x['android:fillColor']?.startsWith('@')) {
-          const key = x['android:fillColor']?.split('/').at(-1).replace('$', '')
-          def += colorContainer.get(key) || ''
-          attr += `fill="url(#${key})"`
-        } else if (x['android:fillColor']) {
-          attr += `fill="${color2c(x['android:fillColor'])}"`
-        }
 
 
         if (x['android:strokeColor']?.startsWith('@')) {
           const key = x['android:strokeColor']?.split('/').at(-1).replace('$', '')
           def += '\n' + colorContainer.get(key) || ''
-          attr += ` stroke="url(#${key})"`
+          attr.stroke = `url(#${key})`
+          attr.fill = "none"
         } else if (x['android:strokeColor']) {
-          attr += ` stroke="${color2c(x['android:strokeColor'])}"`
+          const { c, alpha } = color2c(x['android:strokeColor'])
+          attr.stroke = c
+          attr['stroke-opacity'] = alpha
+          attr.fill = "none"
+        }
+
+
+        if (x['android:fillColor']?.startsWith('@')) {
+          const key = x['android:fillColor']?.split('/').at(-1).replace('$', '')
+          def += colorContainer.get(key) || ''
+          attr.fill = `url(#${key})`
+        } else if (x['android:fillColor']) {
+          const { c, alpha } = color2c(x['android:fillColor'])
+          attr.fill = c
+          attr['fill-opacity'] = alpha
         }
 
 
 
+
         if (x['android:strokeWidth']) {
-          attr += ` stroke-width="${x['android:strokeWidth']}"`
+          attr['stroke-width'] = x['android:strokeWidth']
         }
 
 
 
 
         if (x['android:strokeAlpha']) {
-          attr += ` stroke-opacity="${x['android:strokeAlpha']}"`
+          attr['stroke-opacity'] = x['android:strokeAlpha']
         }
         if (x['android:fillAlpha']) {
-          attr += ` opacity="${x['android:fillAlpha']}"`
+          attr.opacity = Number(x['android:fillAlpha'])
         }
 
         if (x['android:fillType']) {
-          attr += ` fill-rule="${x['android:fillType']?.toLowerCase()}"`
+          attr['fill-rule'] = x['android:fillType']?.toLowerCase()
         }
-        content += `\n<path d="${x['android:pathData']}" ${attr}/>`
+
+
+
+
+
+
+        // strokeLineCap
+
+
+        const attrStr = Object.entries(attr).map(([k, v]) => `${k}="${v}"`).join(' ')
+        content += `\n<path d="${x['android:pathData']}" ${attrStr}/>`
       })
       if (group) {
         group?.forEach((x, i) => {
@@ -136,8 +181,10 @@ const v2svg = (json) => {
     const { def, content } = v2str(vector)
 
     const defs = def ? `<defs>${def} </defs>` : ''
+    const w = Number(meta['android:viewportWidth'])
+    const h = Number(meta['android:viewportHeight'])
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 ${meta['android:viewportWidth']} ${meta['android:viewportHeight']}" xmlns="http://www.w3.org/2000/svg" fill="none">
+<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
 ${defs}${content}
 </svg>`
   }
