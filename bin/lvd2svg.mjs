@@ -64,13 +64,15 @@ const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
     const { $: meta, item } = gradient;
+
+    const stopArr = item.map(obj => {
+      const { $: x } = obj;
+      const offset = x['android:offset']
+      const { c: color, alpha } = color2c(x['android:color'])
+      return `<stop stop-color="${color}"  stop-opacity="${alpha}"  offset="${Number(offset)}"/>`
+    })
+
     if (meta['android:type'] === 'linear') {
-      const stopArr = item.map(obj => {
-        const { $: x } = obj;
-        const offset = x['android:offset']
-        const { c: color, alpha } = color2c(x['android:color'])
-        return `<stop stop-color="${color}"  stop-opacity="${alpha}"  offset="${Number(offset)}"/>`
-      })
       const x1 = Number(meta['android:startX'])
       const x2 = Number(meta['android:endX'])
       const y1 = Number(meta['android:startY'])
@@ -78,6 +80,15 @@ const gradient2def = (name, json) => {
       return `<linearGradient id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
 </linearGradient>`
+
+    }
+    if (meta['android:type'] === 'radial') {
+      const cx = Number(meta['android:centerX'])
+      const cy = Number(meta['android:centerY'])
+      const r = Number(meta['android:gradientRadius'])
+      return `<radialGradient id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
+${stopArr.join('\n')}
+</radialGradient>`
 
     }
   }
@@ -97,9 +108,21 @@ const v2svg = (json) => {
       let content = ''
       path?.forEach((obj) => {
         const { $: x } = obj;
-        const attr = {};
+        const attr = {
+          d: x['android:pathData']
+        };
         // https://developer.android.com/reference/android/graphics/drawable/VectorDrawable
+        // https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/path
 
+        if (x['android:name']) {
+          attr.id = x['android:name']
+        }
+        if (x['android:width']) {
+          attr.width = Number(x['android:width'])
+        }
+        if (x['android:width']) {
+          attr.width = Number(x['android:width'])
+        }
 
         if (x['android:strokeColor']?.startsWith('@')) {
           const key = x['android:strokeColor']?.split('/').at(-1).replace('$', '')
@@ -125,36 +148,33 @@ const v2svg = (json) => {
         }
 
 
-
-
         if (x['android:strokeWidth']) {
           attr['stroke-width'] = x['android:strokeWidth']
         }
-
-
-
-
         if (x['android:strokeAlpha']) {
           attr['stroke-opacity'] = x['android:strokeAlpha']
         }
         if (x['android:fillAlpha']) {
-          attr.opacity = Number(x['android:fillAlpha'])
+          attr['fill-opacity'] = Number(x['android:fillAlpha'])
         }
+
+        if (x['android:strokeLineCap']) {
+          attr['stroke-linecap'] = x['android:strokeLineCap']
+        }
+        if (x['android:strokeLineJoin']) {
+          attr['stroke-linejoin'] = x['android:strokeLineJoin']
+        }
+        if (x['android:strokeMiterLimit']) {
+          attr['stroke-miterlimit'] = Number(x['android:strokeMiterLimit'])
+        }
+
 
         if (x['android:fillType']) {
           attr['fill-rule'] = x['android:fillType']?.toLowerCase()
         }
 
-
-
-
-
-
-        // strokeLineCap
-
-
         const attrStr = Object.entries(attr).map(([k, v]) => `${k}="${v}"`).join(' ')
-        content += `\n<path d="${x['android:pathData']}" ${attrStr}/>`
+        content += `\n<path ${attrStr}/>`
       })
       if (group) {
         group?.forEach((x, i) => {
@@ -196,7 +216,7 @@ const outDir = './out'
 readdir(baseDir, (err, f) => {
   if (err) throw err;
   console.log('f', f);
-  f.forEach((fileItem, finex) => {
+  f.sort().forEach((fileItem, finex) => {
     if (fileItem?.endsWith('.xml')) {
 
       const name = fileItem.replace(/^\$|\.xml$/g, '')
@@ -235,7 +255,7 @@ readdir(baseDir, (err, f) => {
 
   })
 
-  // console.log('===> ', colorContainer.entries());
+  console.log('===> ', colorContainer.entries());
 
 
 })
