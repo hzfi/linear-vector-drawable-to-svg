@@ -1,9 +1,22 @@
 {
-  "name": "linear-vector-drawable-to-svg",
-  "version": "1.0.0",
-  "description": "",
-  "license": "ISC",
-  "author": "",
+  "name": "lvd2svg",
+  "version": "1.0.1",
+  "description": "linear-gradient or radial-gradient android vector drawable to SVG converter.",
+  "keywords": [
+    "vector-drawable",
+    "svg",
+    "android-vector"
+  ],
+  "homepage": "https://github.com/hzfi/linear-vector-drawable-to-svg#readme",
+  "bugs": {
+    "url": "https://github.com/hzfi/linear-vector-drawable-to-svg/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hzfi/linear-vector-drawable-to-svg.git"
+  },
+  "license": "Apache-2.0",
+  "author": "hzfi",
   "type": "module",
   "main": "lvd2svg.mjs",
   "bin": {
@@ -15,6 +28,10 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "sax": "^1.4.1",
+    "xmlbuilder": "^11.0.1"
   },
   "devDependencies": {
     "xml2js": "^0.6.2"
