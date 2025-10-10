@@ -1,13 +1,45 @@
 #!/usr/bin/env node
 // const { transform } = require('..');
 
-import { readdir, readFile, readFileSync, writeFile } from 'fs';
+import { readdir, existsSync, mkdirSync, readFileSync, writeFile } from 'fs';
 import path from 'path';
-import { Parser } from 'xml2js';
+import { Parser } from 'xml2js';;
+import packageJson from '../package.json'  with { type: "json" };
 
 
-const inputFile = process.argv[2];
-const outputFile = process.argv[3];
+const checkArgs = () => {
+  if (process.argv.includes('-o')) {
+    const outputIndex = process.argv.findIndex(x=>x==='-o' )
+    const dir = process.argv[ outputIndex + 1 ]
+    if ( dir ) {
+      outDir = dir 
+    }
+  }
+
+  if (process.argv.includes('-h') || process.argv.includes('--help')) {
+    const str = `
+Usage: lvd2svg [options]
+
+Options:
+  -o\t\t\t specify the output directory, default is ./out
+  -h, --help\t\t print help
+  -v, --version\t\t print lvd2svg version
+`
+    console.log(str);
+
+    return true
+  }
+
+
+  if (process.argv.includes('-v') || process.argv.includes('--version')) {
+    console.log(`
+lvd2svg:
+version: ${packageJson.version}
+`);
+    return true
+  }
+
+}
 
 // if (!inputFile) {
 //   throw new Error('inputFile is invalid');
@@ -19,8 +51,7 @@ const outputFile = process.argv[3];
 
 
 
-console.log('hello')
-const [text] = process.argv.slice(2);
+// const [text] = process.argv.slice(2);
 
 const colorContainer = new Map()
 
@@ -111,8 +142,6 @@ const v2svg = (json) => {
         const attr = {
           d: x['android:pathData']
         };
-        // https://developer.android.com/reference/android/graphics/drawable/VectorDrawable
-        // https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/path
 
         if (x['android:name']) {
           attr.id = x['android:name']
@@ -212,51 +241,63 @@ ${defs}${content}
 }
 
 const baseDir = './'
-const outDir = './out'
-readdir(baseDir, (err, f) => {
-  if (err) throw err;
-  console.log('f', f);
-  f.sort().forEach((fileItem, finex) => {
-    if (fileItem?.endsWith('.xml')) {
+let outDir = './out'
 
-      const name = fileItem.replace(/^\$|\.xml$/g, '')
-      // 颜色
-      if (fileItem?.startsWith('$')) {
-        const content = readXml(path.join(baseDir, fileItem))
-        const parser = new Parser();
-        parser.parseString(content, (err, result) => {
-          if (err) {
-            console.error(err);
-            return;
-          }
-          const j = gradient2def(name, result)
-          colorContainer.set(name, j)
-        });
-      } else {
-        const content = readXml(path.join(baseDir, fileItem))
-        const parser = new Parser();
-        parser.parseString(content, (err, result) => {
-          if (err) {
-            console.error(err);
-            return;
-          }
-          const text = v2svg(result)
-          console.log('ddd', name, text);
-          if (text) {
-            writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
-          }
+const main = () => {
+  if (checkArgs()) {
+    return
+  }
 
-        });
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+
+  readdir(baseDir, (err, f) => {
+    if (err) throw err;
+    // console.log('f', f);
+    f.sort().forEach((fileItem, finex) => {
+      if (fileItem?.endsWith('.xml')) {
+
+        const name = fileItem.replace(/^\$|\.xml$/g, '')
+        // 颜色
+        if (fileItem?.startsWith('$')) {
+          const content = readXml(path.join(baseDir, fileItem))
+          const parser = new Parser();
+          parser.parseString(content, (err, result) => {
+            if (err) {
+              console.error(err);
+              return;
+            }
+            const j = gradient2def(name, result)
+            colorContainer.set(name, j)
+          });
+        } else {
+          const content = readXml(path.join(baseDir, fileItem))
+          const parser = new Parser();
+          parser.parseString(content, (err, result) => {
+            if (err) {
+              console.error(err);
+              return;
+            }
+            const text = v2svg(result)
+            // console.log('ddd', name, text);
+            if (text) {
+              writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
+            }
+
+          });
+        }
+
+
+
       }
 
+    })
 
+    // console.log('===> ', colorContainer.entries());
 
-    }
 
   })
 
-  console.log('===> ', colorContainer.entries());
-
-
-})
-
+}
+main()

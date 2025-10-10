@@ -30,10 +30,6 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "sax": "^1.4.1",
-    "xmlbuilder": "^11.0.1"
-  },
-  "devDependencies": {
     "xml2js": "^0.6.2"
   }
 }
