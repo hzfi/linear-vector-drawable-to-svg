@@ -20,7 +20,7 @@ Specify the output directory; the default is `./out`. Example:
 
 ```bash
 cd drawable
-lvd2svg -o ./outfile
+lvd2svg -o ./outputfile
 ```
 
 ## Support Tag

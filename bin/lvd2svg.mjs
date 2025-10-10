@@ -61,7 +61,7 @@ const readXml = (file) => {
     const c = readFileSync(file, 'utf-8',)
     return c
   } catch (error) {
-    console.log('-readXml', error);
+    console.log('-readXml error: ', error);
 
 
   }
@@ -128,7 +128,7 @@ ${stopArr.join('\n')}
 const v2svg = (json) => {
   const vector = json.vector
   if (vector) {
-    console.log('vector', vector);
+    // console.log('vector', vector);
 
     const { $: meta } = vector;
 
