@@ -168,8 +168,6 @@ const v2svg = (json) => {
           d: x[GLOB_CONFIG.ns + ':pathData']
         };
 
-        console.log('================', attr);
-
         if (x[GLOB_CONFIG.ns + ':name']) {
           attr.id = x[GLOB_CONFIG.ns + ':name']
         }
@@ -253,10 +251,18 @@ const v2svg = (json) => {
           let attr = '';
           if (x['clip-path']) {
             x['clip-path']?.forEach((y, j) => {
-              def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
+              if (!j) {
+                def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
 <path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
 </clipPath>`
-              attr += `clip-path="url(#_clippath_${lev}_${i}_${j})"`
+              } else {
+                def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
+<g clip-path="url(#_clippath_${lev}_${i}_${j - 1})">
+<path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
+</g>
+</clipPath>`
+              }
+              attr = `clip-path="url(#_clippath_${lev}_${i}_${j})"`
             })
           }
           const g = v2str(x, lev + 1)
