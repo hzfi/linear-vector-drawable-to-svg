@@ -9,10 +9,10 @@ import packageJson from '../package.json'  with { type: "json" };
 
 const checkArgs = () => {
   if (process.argv.includes('-o')) {
-    const outputIndex = process.argv.findIndex(x=>x==='-o' )
-    const dir = process.argv[ outputIndex + 1 ]
-    if ( dir ) {
-      outDir = dir 
+    const outputIndex = process.argv.findIndex(x => x === '-o')
+    const dir = process.argv[outputIndex + 1]
+    if (dir) {
+      outDir = dir
     }
   }
 
@@ -84,6 +84,9 @@ function chunkArray(arr, chunkSize) {
 //   return `rgba(${c}, ${alphaVal})`
 // }
 const color2c = str => {
+  if (!/^#[0-9a-fA-F]{8}$/g.test(str)) {
+    return {}
+  }
   const [alpha, r, g, b] = chunkArray(str.replace('#', ''), 2);
   const alphaVal = parseInt(alpha, 16) / 255
   return {
@@ -100,6 +103,7 @@ const gradient2def = (name, json) => {
       const { $: x } = obj;
       const offset = x['android:offset']
       const { c: color, alpha } = color2c(x['android:color'])
+      if (!color) return ''
       return `<stop stop-color="${color}"  stop-opacity="${alpha}"  offset="${Number(offset)}"/>`
     })
 
@@ -160,9 +164,11 @@ const v2svg = (json) => {
           attr.fill = "none"
         } else if (x['android:strokeColor']) {
           const { c, alpha } = color2c(x['android:strokeColor'])
-          attr.stroke = c
-          attr['stroke-opacity'] = alpha
-          attr.fill = "none"
+          if (c) {
+            attr.stroke = c
+            attr['stroke-opacity'] = alpha
+            attr.fill = "none"
+          }
         }
 
 
@@ -172,8 +178,10 @@ const v2svg = (json) => {
           attr.fill = `url(#${key})`
         } else if (x['android:fillColor']) {
           const { c, alpha } = color2c(x['android:fillColor'])
-          attr.fill = c
-          attr['fill-opacity'] = alpha
+          if (c) {
+            attr.fill = c
+            attr['fill-opacity'] = alpha
+          }
         }
 
 
