@@ -149,16 +149,13 @@ const getMajoritykey = (arr) => {
 const v2svg = (json) => {
   const vector = json.vector
   if (vector) {
-    console.log('vector', vector);
-
+    // console.log('vector', vector);
 
     const { $: meta } = vector;
     const metaKeyArr = Object.keys(meta).map(x => x.split(':')[0])
     const globalKey = getMajoritykey(metaKeyArr)
     GLOB_CONFIG.ns = globalKey;
-
-    console.log('GLOB_CONFIG.ns', GLOB_CONFIG );
-    
+    // console.log('GLOB_CONFIG.ns', GLOB_CONFIG);
 
     const v2str = (v, lev = 0) => {
       const { path, group } = v;
@@ -171,8 +168,8 @@ const v2svg = (json) => {
           d: x[GLOB_CONFIG.ns + ':pathData']
         };
 
-        console.log('================', attr );
-        
+        console.log('================', attr);
+
         if (x[GLOB_CONFIG.ns + ':name']) {
           attr.id = x[GLOB_CONFIG.ns + ':name']
         }
@@ -183,8 +180,10 @@ const v2svg = (json) => {
           attr.width = Number(x[GLOB_CONFIG.ns + ':width'])
         }
 
-        if (x[GLOB_CONFIG.ns + ':strokeColor']?.startsWith('@')) {
-          const { key, colorDef } = hasColor(x[GLOB_CONFIG.ns + ':strokeColor'])
+        const strokeColor = x[GLOB_CONFIG.ns + ':strokeColor']
+
+        if (strokeColor?.startsWith('@') || strokeColor?.startsWith('?')) {
+          const { key, colorDef } = hasColor(strokeColor)
           if (colorDef) {
             def += '\n' + colorDef
             attr.stroke = `url(#${key})`
@@ -192,24 +191,28 @@ const v2svg = (json) => {
           } else {
             attr.stroke = key
           }
-        } else if (x[GLOB_CONFIG.ns + ':strokeColor']) {
-          const { c, alpha } = color2c(x[GLOB_CONFIG.ns + ':strokeColor'])
+        } else if (strokeColor) {
+          const { c, alpha } = color2c(strokeColor)
           if (c) {
             attr.stroke = c
             attr['stroke-opacity'] = alpha
             attr.fill = "none"
           }
         }
-        if (x[GLOB_CONFIG.ns + ':fillColor']?.startsWith('@')) {
-          const { key, colorDef } = hasColor(x[GLOB_CONFIG.ns + ':fillColor'])
+
+
+
+        const fillColor = x[GLOB_CONFIG.ns + ':fillColor']
+        if (fillColor?.startsWith('@') || fillColor?.startsWith('?')) {
+          const { key, colorDef } = hasColor(fillColor)
           if (colorDef) {
             def += '\n' + colorDef
             attr.fill = `url(#${key})`
           } else {
             attr.fill = key
           }
-        } else if (x[GLOB_CONFIG.ns + ':fillColor']) {
-          const { c, alpha } = color2c(x[GLOB_CONFIG.ns + ':fillColor'])
+        } else if (fillColor) {
+          const { c, alpha } = color2c(fillColor)
           if (c) {
             attr.fill = c
             attr['fill-opacity'] = alpha
