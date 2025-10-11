@@ -140,7 +140,7 @@ const hasColor = (val) => {
 
 const getMajoritykey = (arr) => {
   const countMap = arr.reduce((p, c) => { p.has(c) ? p.set(c, p.get(c) + 1) : p.set(c, 1); return p }, new Map())
-  const key = [...countMap].map(([a, b]) => [b, a])[0][1]
+  const key = [...countMap].sort((a, b) => -a[1] + b[1])[0][0]
   return key
 
 }
