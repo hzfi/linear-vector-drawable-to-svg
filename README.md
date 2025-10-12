@@ -2,7 +2,7 @@
 
 ## Environment
 
-`Node.js v24.0.2`
+recommended running environment: `Node.js v24.0.2`
 
 ## `L`inear / radial gradient `V`ector `D`rawable `To` `SVG` converter
 
@@ -23,9 +23,15 @@ cd drawable
 lvd2svg -o ./outputfile
 ```
 
-## Support Tag
+## Features
 
-`<path>` `<group>` `<gradient>`
+convert `<path>` `<clipPath>` `<group>` `<gradient>` Tag
+
+- extract gradient colors from `@drawable/$`
+- extract color from Android color constants `@android:color/`
+- extract color from `values/colors.xml`
+- extract color from `values/styles.xml`
+- support group transform
 
 References：
 
