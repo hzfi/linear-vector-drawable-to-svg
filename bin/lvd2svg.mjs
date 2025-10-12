@@ -99,6 +99,58 @@ const color2c = str => {
     return {}
   }
 }
+
+const outputColor = (color) => {
+
+  let currentColor = color;
+  // 将颜色引用转为绝对颜色
+  if (currentColor?.startsWith('@color/')) {
+    const key = currentColor?.split('/').at(-1)
+    const val = GLOB_CONFIG.colors.get(key);
+    if (val) {
+      currentColor = val
+    }
+  } else if (currentColor?.startsWith('?')) {
+    const key = currentColor?.replace('?', '')
+    const val = GLOB_CONFIG.styles.get(key);
+    if (val) {
+      currentColor = val
+    }
+  } else if (currentColor?.startsWith('@android:color/')) {
+    const key = currentColor?.split('/').at(-1)
+    const val = ANDROID_COLOR_CONST[key];
+    if (val) {
+      currentColor = val
+    }
+  }
+
+  if (currentColor?.startsWith('@drawable/$')) {
+    // @drawable/$ 视为渐变引用
+    const { key, colorDef } = hasColor(currentColor)
+    if (colorDef) {
+      return {
+        color: `url(#${key})`,
+        colorDef,
+        isRef: true
+      }
+    } else {
+      return {
+        color: currentColor,
+        isRef: false
+      }
+    }
+  } else if (currentColor) {
+    const { c, alpha } = color2c(currentColor)
+    return {
+      color: c,
+      alpha,
+      isRef: false
+    }
+  }
+
+}
+
+
 const attr2Str = (attr) => Object.entries(attr).map(([k, v]) => `${k}="${v}"`).join(' ')
 const gradient2def = (name, json) => {
   const gradient = json.gradient
@@ -189,52 +241,37 @@ const v2svg = (json) => {
         if (x[GLOB_CONFIG.ns + ':width']) {
           attr.width = Number(x[GLOB_CONFIG.ns + ':width'])
         }
-        if (x[GLOB_CONFIG.ns + ':width']) {
-          attr.width = Number(x[GLOB_CONFIG.ns + ':width'])
+        if (x[GLOB_CONFIG.ns + ':height']) {
+          attr.height = Number(x[GLOB_CONFIG.ns + ':height'])
         }
 
-        const strokeColor = x[GLOB_CONFIG.ns + ':strokeColor']
 
-        if (strokeColor?.startsWith('@') || strokeColor?.startsWith('?')) {
-          const { key, colorDef } = hasColor(strokeColor)
-          if (colorDef) {
+
+        const strokeColor = x[GLOB_CONFIG.ns + ':strokeColor']
+        if (strokeColor) {
+          const { isRef, colorDef, color, alpha } = outputColor(strokeColor)
+          attr.stroke = color
+          attr.fill = "none"
+          if (isRef) {
             def += '\n' + colorDef
-            attr.stroke = `url(#${key})`
-            attr.fill = "none"
-          } else {
-            attr.stroke = key
-          }
-        } else if (strokeColor) {
-          const { c, alpha } = color2c(strokeColor)
-          if (c) {
-            attr.stroke = c
-            attr.fill = "none"
-          }
-          if (alpha !== undefined) {
+          } else if (alpha !== undefined) {
             attr['stroke-opacity'] = alpha
           }
         }
 
 
-
         const fillColor = x[GLOB_CONFIG.ns + ':fillColor']
-        if (fillColor?.startsWith('@') || fillColor?.startsWith('?')) {
-          const { key, colorDef } = hasColor(fillColor)
-          if (colorDef) {
+
+        if (fillColor) {
+          const { isRef, colorDef, color, alpha } = outputColor(fillColor)
+          attr.fill = color
+          if (isRef) {
             def += '\n' + colorDef
-            attr.fill = `url(#${key})`
-          } else {
-            attr.fill = key
-          }
-        } else if (fillColor) {
-          const { c, alpha } = color2c(fillColor)
-          if (c) {
-            attr.fill = c
-          }
-          if (alpha !== undefined) {
+          } else if (alpha !== undefined) {
             attr['fill-opacity'] = alpha
           }
         }
+
 
 
         if (x[GLOB_CONFIG.ns + ':strokeWidth']) {
@@ -284,8 +321,15 @@ const v2svg = (json) => {
             })
           }
           if (x.$) {
-            const getVal = (key) => x.$[GLOB_CONFIG.ns + ':' + key]
-            const name = getVal('name')
+            const getVal = (key, isNum = true) => {
+              const r = x.$[GLOB_CONFIG.ns + ':' + key]
+              if (isNum) {
+                return Number(r)
+              } else {
+                return r
+              }
+            }
+            const name = getVal('name', false)
             const rotation = getVal('rotation')
             const pivotX = getVal('pivotX')
             const pivotY = getVal('pivotY')
@@ -293,21 +337,21 @@ const v2svg = (json) => {
             const scaleY = getVal('scaleY')
             const translateX = getVal('translateX')
             const translateY = getVal('translateY')
-            let tf = ``
+            const tf = []
             if (translateX || translateY) {
-              tf += `translate(${translateX || 0} ${translateY || 0})`
+              tf.push(`translate(${translateX || 0} ${translateY || 0})`)
             }
             if (scaleX || scaleY) {
-              tf += `\nscale(${scaleX || 1} ${scaleY || 1})`
+              tf.push(`scale(${scaleX || 1} ${scaleY || 1})`)
             }
             if (rotation && (pivotX || pivotY)) {
-              tf += `rotate(${rotation},${pivotX || 0},${pivotY || 0})`
+              tf.push(`rotate(${rotation},${pivotX || 0},${pivotY || 0})`)
             }
             if (name) {
               attr.name = name;
             }
-            if (tf) {
-              attr.transform = tf;
+            if (tf?.length) {
+              attr.transform = tf.join('\n');
             }
             // transform="rotate(-10 50 100)
             //            translate(-36 45.5)
@@ -327,12 +371,11 @@ const v2svg = (json) => {
 
     const { def, content } = v2str(vector)
 
-    const defs = def ? `<defs>${def} </defs>` : ''
+    const defs = def ? `\n<defs>${def} </defs>` : ''
     const w = Number(meta[GLOB_CONFIG.ns + ':viewportWidth'])
     const h = Number(meta[GLOB_CONFIG.ns + ':viewportHeight'])
     return `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-${defs}${content}
+<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${defs}${content}
 </svg>`
   }
 
@@ -343,7 +386,7 @@ let outDir = './out'
 
 // https://developer.android.com/reference/android/graphics/Color#constants_1
 // https://developer.android.com/reference/kotlin/android/R.color#constants
-const COLOR_CONST = {
+const ANDROID_COLOR_CONST = {
   black: '#ff000000',
   blue: '#ff0000ff',
   cyan: '#ff00ffff',
@@ -376,51 +419,68 @@ const COLOR_CONST = {
 const GLOB_CONFIG = {
   ns: 'android',
   colors: new Map(),
-  COLOR_CONST,
+  styles: new Map(),
+  ANDROID_COLOR_CONST,
 }
 
 
-
+const transformColorFromVar = (val) => {
+  if (val?.startsWith('@color/')) {
+    const v = GLOB_CONFIG.colors.get(val?.replace('@color/', ''))
+    return v
+  } else if (val?.startsWith('@android:color/')) {
+    const v = ANDROID_COLOR_CONST[val?.replace('@android:color/', '')]
+    return v
+  }
+}
 
 const try2collectValuesColor = async () => {
   try {
     const atPath = (dir) => path.join(baseDir, '../', dir)
 
     const dirList = readdirSync(atPath('values'))
-    console.log('dir ', dirList);
+    // console.log('dir ', dirList);
     if (dirList.includes('colors.xml')) {
       const { resources } = await readXml(atPath('values/colors.xml'))
       if (resources.color) {
         GLOB_CONFIG.colors = new Map()
-        const varColor = resources.color.filter(x => x._?.startsWith('@'));
-        const constColor = resources.color.filter(x => !x._?.startsWith('@'));
+        const varColor = resources.color.filter(x => x?._?.startsWith('@'));
+        const constColor = resources.color.filter(x => x?._ && !x._?.startsWith('@'));
         constColor.forEach(x => {
           GLOB_CONFIG.colors.set(x?.$?.name, x._)
         })
         varColor.forEach(x => {
-          const val = x._
-          if (val?.startsWith('@color/')) {
-            const v = GLOB_CONFIG.colors.get(val?.replace('@color/', ''))
-            GLOB_CONFIG.colors.set(x?.$?.name, v)
-          } else if (val?.startsWith('@android:color/')) {
-            const v = COLOR_CONST[val?.replace('@android:color/', '')]
-            v &&
-              GLOB_CONFIG.colors.set(x?.$?.name, v)
-          } else {
-            console.log('not match const color: ', x);
-
+          const val = transformColorFromVar(x._)
+          if (val) {
+            GLOB_CONFIG.colors.set(x?.$?.name, val)
           }
         })
-        console.log(`Collecting colors: ${GLOB_CONFIG.colors.size} \t\t\t Done;`);
-
+        console.log(`Collecting colors from \`values/colors.xml\`: ${GLOB_CONFIG.colors.size} \t\t Done;`);
 
       }
 
 
     }
-    // if (dirList.dimens) {
+    if (dirList.includes('styles.xml')) {
 
-    // }
+      const { resources } = await readXml(atPath('values/styles.xml'))
+      const list = (resources.style?.flatMap(x => x.item) || []).filter(Boolean)
+      list.forEach(x => {
+        const key = x?.$?.name;
+        const val = x?._
+        if (!GLOB_CONFIG.styles.get(key)) {
+          if (/^#[0-9a-fA-F]{8}$/g.test(val)) {
+            GLOB_CONFIG.styles.set(key, val)
+          } else {
+            const val2 = transformColorFromVar(x._)
+            if (val2) {
+              GLOB_CONFIG.styles.set(key, val2)
+            }
+          }
+        }
+      })
+      console.log(`Collecting colors from \`values/styles.xml\`: ${GLOB_CONFIG.styles.size} \t\t Done;`);
+    }
     // if (dirList.drawables) {
 
     // }
