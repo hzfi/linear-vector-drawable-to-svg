@@ -119,8 +119,7 @@ const gradient2def = (name, json) => {
       if (offset) {
         attr['offset'] = Number(offset)
       }
-      attr2Str(attr)
-      return `<stop  ${attr2Str(attr)} />`
+      return `<stop ${attr2Str(attr)} />`
     })
 
     if (meta[GLOB_CONFIG.ns + ':type'] === 'linear') {
@@ -209,8 +208,10 @@ const v2svg = (json) => {
           const { c, alpha } = color2c(strokeColor)
           if (c) {
             attr.stroke = c
-            attr['stroke-opacity'] = alpha
             attr.fill = "none"
+          }
+          if (alpha) {
+            attr['stroke-opacity'] = alpha
           }
         }
 
@@ -228,7 +229,7 @@ const v2svg = (json) => {
         } else if (fillColor) {
           const { c, alpha } = color2c(fillColor)
           if (c) {
-            attr.fill = checkArgs
+            attr.fill = c
           }
           if (alpha) {
             attr['fill-opacity'] = alpha
@@ -265,7 +266,7 @@ const v2svg = (json) => {
       })
       if (group) {
         group?.forEach((x, i) => {
-          let attr = '';
+          const attr = {};
           if (x['clip-path']) {
             x['clip-path']?.forEach((y, j) => {
               if (!j) {
@@ -279,12 +280,43 @@ const v2svg = (json) => {
 </g>
 </clipPath>`
               }
-              attr = `clip-path="url(#_clippath_${lev}_${i}_${j})"`
+              attr['clip-path'] = `url(#_clippath_${lev}_${i}_${j})`
             })
+          }
+          if (x.$) {
+            const getVal = (key) => x.$[GLOB_CONFIG.ns + ':' + key]
+            const name = getVal('name')
+            const rotation = getVal('rotation')
+            const pivotX = getVal('pivotX')
+            const pivotY = getVal('pivotY')
+            const scaleX = getVal('scaleX')
+            const scaleY = getVal('scaleY')
+            const translateX = getVal('translateX')
+            const translateY = getVal('translateY')
+            let tf = ``
+            if (translateX || translateY) {
+              tf += `translate(${translateX || 0} ${translateY || 0})`
+            }
+            if (scaleX || scaleY) {
+              tf += `\nscale(${scaleX || 1} ${scaleY || 1})`
+            }
+            if (rotation && (pivotX || pivotY)) {
+              tf += `rotate(${rotation},${pivotX || 0},${pivotY || 0})`
+            }
+            if (name) {
+              attr.name = name;
+            }
+            if (tf) {
+              attr.transform = tf;
+            }
+            // transform="rotate(-10 50 100)
+            //            translate(-36 45.5)
+            //            skewX(40)
+            //            scale(1 0.5)">
           }
           const g = v2str(x, lev + 1)
           def += g.def
-          content += `\n<g ${attr}>${g.content}\n</g>`
+          content += `\n<g ${attr2Str(attr)}>${g.content}\n</g>`
         })
       }
       return {
