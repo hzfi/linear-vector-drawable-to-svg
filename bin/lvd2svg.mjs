@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // const { transform } = require('..');
 
-import { readdir, existsSync, mkdirSync, readFileSync, writeFile } from 'fs';
+import { readdir, existsSync, mkdirSync, readFileSync, writeFile, readdirSync } from 'fs';
 import path from 'path';
 import { Parser } from 'xml2js';;
 import packageJson from '../package.json'  with { type: "json" };
@@ -55,15 +55,14 @@ version: ${packageJson.version}
 
 const colorContainer = new Map()
 
-const readXml = (file) => {
-
+const readXml = async (file) => {
   try {
-    const c = readFileSync(file, 'utf-8',)
-    return c
+    const content = readFileSync(file, 'utf-8')
+    const parser = new Parser();
+    const result = await parser.parseStringPromise(content)
+    return result
   } catch (error) {
     console.log('-readXml error: ', error);
-
-
   }
 }
 
@@ -84,16 +83,23 @@ function chunkArray(arr, chunkSize) {
 //   return `rgba(${c}, ${alphaVal})`
 // }
 const color2c = str => {
-  if (!/^#[0-9a-fA-F]{8}$/g.test(str)) {
+  if (/^#[0-9a-fA-F]{8}$/g.test(str)) {
+    const [alpha, r, g, b] = chunkArray(str.replace('#', ''), 2);
+    const alphaVal = parseInt(alpha, 16) / 255
+    return {
+      c: '#' + [r, g, b].join(''),
+      alpha: alphaVal
+    }
+  } else if (/^#[0-9a-fA-F]{6}$/g.test(str)) {
+    const [r, g, b] = chunkArray(str.replace('#', ''), 2);
+    return {
+      c: '#' + [r, g, b].join(''),
+    }
+  } else {
     return {}
   }
-  const [alpha, r, g, b] = chunkArray(str.replace('#', ''), 2);
-  const alphaVal = parseInt(alpha, 16) / 255
-  return {
-    c: '#' + [r, g, b].join(''),
-    alpha: alphaVal
-  }
 }
+const attr2Str = (attr) => Object.entries(attr).map(([k, v]) => `${k}="${v}"`).join(' ')
 const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
@@ -104,7 +110,17 @@ const gradient2def = (name, json) => {
       const offset = x[GLOB_CONFIG.ns + ':offset']
       const { c: color, alpha } = color2c(x[GLOB_CONFIG.ns + ':color'])
       if (!color) return ''
-      return `<stop stop-color="${color}"  stop-opacity="${alpha}"  offset="${Number(offset)}"/>`
+      const attr = {
+        'stop-color': color
+      }
+      if (alpha) {
+        attr['stop-opacity'] = alpha
+      }
+      if (offset) {
+        attr['offset'] = Number(offset)
+      }
+      attr2Str(attr)
+      return `<stop  ${attr2Str(attr)} />`
     })
 
     if (meta[GLOB_CONFIG.ns + ':type'] === 'linear') {
@@ -212,7 +228,9 @@ const v2svg = (json) => {
         } else if (fillColor) {
           const { c, alpha } = color2c(fillColor)
           if (c) {
-            attr.fill = c
+            attr.fill = checkArgs
+          }
+          if (alpha) {
             attr['fill-opacity'] = alpha
           }
         }
@@ -243,8 +261,7 @@ const v2svg = (json) => {
           attr['fill-rule'] = x[GLOB_CONFIG.ns + ':fillType']?.toLowerCase()
         }
 
-        const attrStr = Object.entries(attr).map(([k, v]) => `${k}="${v}"`).join(' ')
-        content += `\n<path ${attrStr}/>`
+        content += `\n<path ${attr2Str(attr)} />`
       })
       if (group) {
         group?.forEach((x, i) => {
@@ -292,9 +309,99 @@ ${defs}${content}
 const baseDir = './'
 let outDir = './out'
 
-const GLOB_CONFIG = {
-  ns: 'android'
+// https://developer.android.com/reference/android/graphics/Color#constants_1
+// https://developer.android.com/reference/kotlin/android/R.color#constants
+const COLOR_CONST = {
+  black: '#ff000000',
+  blue: '#ff0000ff',
+  cyan: '#ff00ffff',
+  dkgray: '#ff444444',
+  gray: '#ff888888',
+  green: '#ff00ff00',
+  ltgray: '#ffcccccc',
+  magenta: '#ffff00ff',
+  red: '#ffff0000',
+  transparent: '#00000000',
+  white: '#ffffffff',
+  yellow: '#ffffff00',
+  background_dark: '#ff000000',
+  background_light: '#ffffffff',
+  darker_gray: '#ffaaaaaa',
+  holo_blue_bright: '#ff00ddff',
+  holo_blue_dark: '#ff0099cc',
+  holo_blue_light: '#ff33b5e5',
+  holo_green_dark: '#ff669900',
+  holo_green_light: '#ff99cc00',
+  holo_orange_dark: '#ffff8800',
+  holo_orange_light: '#ffffbb33',
+  holo_purple: '#ffaa66cc',
+  holo_red_dark: '#ffcc0000',
+  holo_red_light: '#ffff4444',
+  tab_indicator_text: '#ff808080',
+  widget_edittext_dark: '#ff000000',
 }
+
+const GLOB_CONFIG = {
+  ns: 'android',
+  colors: new Map(),
+  COLOR_CONST,
+}
+
+
+
+
+const try2collectValuesColor = async () => {
+  try {
+    const atPath = (dir) => path.join(baseDir, '../', dir)
+
+    const dirList = readdirSync(atPath('values'))
+    console.log('dir ', dirList);
+    if (dirList.includes('colors.xml')) {
+      const { resources } = await readXml(atPath('values/colors.xml'))
+      if (resources.color) {
+        GLOB_CONFIG.colors = new Map()
+        const varColor = resources.color.filter(x => x._?.startsWith('@'));
+        const constColor = resources.color.filter(x => !x._?.startsWith('@'));
+        constColor.forEach(x => {
+          GLOB_CONFIG.colors.set(x?.$?.name, x._)
+        })
+        varColor.forEach(x => {
+          const val = x._
+          if (val?.startsWith('@color/')) {
+            const v = GLOB_CONFIG.colors.get(val?.replace('@color/', ''))
+            GLOB_CONFIG.colors.set(x?.$?.name, v)
+          } else if (val?.startsWith('@android:color/')) {
+            const v = COLOR_CONST[val?.replace('@android:color/', '')]
+            v &&
+              GLOB_CONFIG.colors.set(x?.$?.name, v)
+          } else {
+            console.log('not match const color: ', x);
+
+          }
+        })
+        console.log(`Collecting colors: ${GLOB_CONFIG.colors.size} \t\t\t Done;`);
+
+
+      }
+
+
+    }
+    // if (dirList.dimens) {
+
+    // }
+    // if (dirList.drawables) {
+
+    // }
+    // if (dirList.integers) {
+
+    // }
+
+  } catch (error) {
+
+  }
+
+}
+
 const main = () => {
   if (checkArgs()) {
     return
@@ -304,46 +411,28 @@ const main = () => {
     mkdirSync(outDir, { recursive: true });
   }
 
+  try2collectValuesColor()
+
   readdir(baseDir, (err, f) => {
     if (err) throw err;
     // console.log('f', f);
-    f.sort().forEach((fileItem, finex) => {
+    f.sort().forEach(async (fileItem, finex) => {
       if (fileItem?.endsWith('.xml')) {
 
         const name = fileItem.replace(/^\$|\.xml$/g, '')
+        const result = await readXml(path.join(baseDir, fileItem))
         // 颜色
         if (fileItem?.startsWith('$')) {
-          const content = readXml(path.join(baseDir, fileItem))
-          const parser = new Parser();
-          parser.parseString(content, (err, result) => {
-            if (err) {
-              console.error(err);
-              return;
-            }
-            const j = gradient2def(name, result)
-            colorContainer.set(name, j)
-          });
+          const j = gradient2def(name, result)
+          colorContainer.set(name, j)
         } else {
-          const content = readXml(path.join(baseDir, fileItem))
-          const parser = new Parser();
-          parser.parseString(content, (err, result) => {
-            if (err) {
-              console.error(err);
-              return;
-            }
-            const text = v2svg(result)
-            // console.log('ddd', name, text);
-            if (text) {
-              writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
-            }
-
-          });
+          const text = v2svg(result)
+          // console.log('ddd', name, text);
+          if (text) {
+            writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
+          }
         }
-
-
-
       }
-
     })
 
     // console.log('===> ', colorContainer.entries());
