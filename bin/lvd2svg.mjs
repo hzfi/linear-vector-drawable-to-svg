@@ -127,7 +127,7 @@ const gradient2def = (name, json) => {
       const x2 = Number(meta[GLOB_CONFIG.ns + ':endX'])
       const y1 = Number(meta[GLOB_CONFIG.ns + ':startY'])
       const y2 = Number(meta[GLOB_CONFIG.ns + ':endY'])
-      return `<linearGradient id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
+      return `<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
 </linearGradient>`
 
@@ -136,7 +136,7 @@ ${stopArr.join('\n')}
       const cx = Number(meta[GLOB_CONFIG.ns + ':centerX'])
       const cy = Number(meta[GLOB_CONFIG.ns + ':centerY'])
       const r = Number(meta[GLOB_CONFIG.ns + ':gradientRadius'])
-      return `<radialGradient id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
+      return `<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
 ${stopArr.join('\n')}
 </radialGradient>`
 
