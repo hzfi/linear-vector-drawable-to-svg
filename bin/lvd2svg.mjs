@@ -113,7 +113,7 @@ const gradient2def = (name, json) => {
       const attr = {
         'stop-color': color
       }
-      if (alpha) {
+      if (alpha !== undefined) {
         attr['stop-opacity'] = alpha
       }
       if (offset) {
@@ -210,7 +210,7 @@ const v2svg = (json) => {
             attr.stroke = c
             attr.fill = "none"
           }
-          if (alpha) {
+          if (alpha !== undefined) {
             attr['stroke-opacity'] = alpha
           }
         }
@@ -231,7 +231,7 @@ const v2svg = (json) => {
           if (c) {
             attr.fill = c
           }
-          if (alpha) {
+          if (alpha !== undefined) {
             attr['fill-opacity'] = alpha
           }
         }
