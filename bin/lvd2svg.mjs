@@ -171,7 +171,7 @@ const gradient2def = (name, json) => {
       if (offset) {
         attr['offset'] = Number(offset)
       }
-      return `<stop ${attr2Str(attr)} />`
+      return `${tab(3)}<stop ${attr2Str(attr)} />`
     })
 
     if (meta[GLOB_CONFIG.ns + ':type'] === 'linear') {
@@ -179,18 +179,18 @@ const gradient2def = (name, json) => {
       const x2 = Number(meta[GLOB_CONFIG.ns + ':endX'])
       const y1 = Number(meta[GLOB_CONFIG.ns + ':startY'])
       const y2 = Number(meta[GLOB_CONFIG.ns + ':endY'])
-      return `<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
+      return `${tab(2)}<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
-</linearGradient>`
+${tab(2)}</linearGradient>`
 
     }
     if (meta[GLOB_CONFIG.ns + ':type'] === 'radial') {
       const cx = Number(meta[GLOB_CONFIG.ns + ':centerX'])
       const cy = Number(meta[GLOB_CONFIG.ns + ':centerY'])
       const r = Number(meta[GLOB_CONFIG.ns + ':gradientRadius'])
-      return `<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
+      return `${tab(2)}<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
 ${stopArr.join('\n')}
-</radialGradient>`
+${tab(2)}</radialGradient>`
 
     }
   }
@@ -299,7 +299,7 @@ const v2svg = (json) => {
           attr['fill-rule'] = x[GLOB_CONFIG.ns + ':fillType']?.toLowerCase()
         }
 
-        content += `\n<path ${attr2Str(attr)} />`
+        content += `\n${tab(1 + lev * 1)}<path ${attr2Str(attr)} />`
       })
       if (group) {
         group?.forEach((x, i) => {
@@ -307,15 +307,15 @@ const v2svg = (json) => {
           if (x['clip-path']) {
             x['clip-path']?.forEach((y, j) => {
               if (!j) {
-                def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
-<path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
-</clipPath>`
+                def += `\n${tab(2)}<clipPath id="_clippath_${lev}_${i}_${j}">
+${tab(3)}<path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
+${tab(2)}</clipPath>`
               } else {
-                def += `\n<clipPath id="_clippath_${lev}_${i}_${j}">
-<g clip-path="url(#_clippath_${lev}_${i}_${j - 1})">
-<path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
-</g>
-</clipPath>`
+                def += `\n${tab(2)}<clipPath id="_clippath_${lev}_${i}_${j}">
+${tab(3)}<g clip-path="url(#_clippath_${lev}_${i}_${j - 1})">
+${tab(4)}<path d="${y['$'][GLOB_CONFIG.ns + ':pathData']}"/>
+${tab(3)}</g>
+${tab(2)}</clipPath>`
               }
               attr['clip-path'] = `url(#_clippath_${lev}_${i}_${j})`
             })
@@ -360,7 +360,8 @@ const v2svg = (json) => {
           }
           const g = v2str(x, lev + 1)
           def += g.def
-          content += `\n<g ${attr2Str(attr)}>${g.content}\n</g>`
+          content += `\n${tab(1 + lev * 1)}<g ${attr2Str(attr)}>${g.content}
+${tab(1 + lev * 1)}</g>`
         })
       }
       return {
@@ -371,7 +372,8 @@ const v2svg = (json) => {
 
     const { def, content } = v2str(vector)
 
-    const defs = def ? `\n<defs>${def} </defs>` : ''
+    const defs = def ? `\n${tab(1)}<defs>${def}
+${tab(1)}</defs>` : ''
     const w = Number(meta[GLOB_CONFIG.ns + ':viewportWidth'])
     const h = Number(meta[GLOB_CONFIG.ns + ':viewportHeight'])
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -421,8 +423,10 @@ const GLOB_CONFIG = {
   colors: new Map(),
   styles: new Map(),
   ANDROID_COLOR_CONST,
+  tab: '  ',
 }
 
+const tab = (n) => GLOB_CONFIG.tab.repeat(n)
 
 const transformColorFromVar = (val) => {
   if (val?.startsWith('@color/')) {
