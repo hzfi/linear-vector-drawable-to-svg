@@ -124,8 +124,8 @@ const outputColor = (color) => {
     }
   }
 
-  if (currentColor?.startsWith('@drawable/$')) {
-    // @drawable/$ 视为渐变引用
+  if (currentColor?.startsWith('@drawable/')) {
+    // @drawable/ 视为渐变引用
     const { key, colorDef } = hasColor(currentColor)
     if (colorDef) {
       return {
@@ -156,6 +156,7 @@ const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
     const { $: meta, item } = gradient;
+    let result = ''
 
     const stopArr = item.map(obj => {
       const { $: x } = obj;
@@ -179,19 +180,22 @@ const gradient2def = (name, json) => {
       const x2 = Number(meta[GLOB_CONFIG.ns + ':endX'])
       const y1 = Number(meta[GLOB_CONFIG.ns + ':startY'])
       const y2 = Number(meta[GLOB_CONFIG.ns + ':endY'])
-      return `${tab(2)}<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
+      result = `${tab(2)}<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
 ${tab(2)}</linearGradient>`
 
-    }
-    if (meta[GLOB_CONFIG.ns + ':type'] === 'radial') {
+    } else if (meta[GLOB_CONFIG.ns + ':type'] === 'radial') {
       const cx = Number(meta[GLOB_CONFIG.ns + ':centerX'])
       const cy = Number(meta[GLOB_CONFIG.ns + ':centerY'])
       const r = Number(meta[GLOB_CONFIG.ns + ':gradientRadius'])
-      return `${tab(2)}<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
+      result = `${tab(2)}<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
 ${stopArr.join('\n')}
 ${tab(2)}</radialGradient>`
 
+    }
+    return {
+      type: meta[GLOB_CONFIG.ns + ':type'],
+      result
     }
   }
 }
@@ -509,30 +513,76 @@ const main = () => {
 
   try2collectValuesColor()
 
-  readdir(baseDir, (err, f) => {
+  readdir(baseDir, async (err, f) => {
     if (err) throw err;
     // console.log('f', f);
-    f.sort().forEach(async (fileItem, finex) => {
-      if (fileItem?.endsWith('.xml')) {
-
+    const currentListObj = f.reduce(async (p, fileItem) => {
+      const fileType = fileItem.split('.').at(-1);
+      const prev = await p;
+      if (fileType !== 'xml') {
+        const count = prev.fileType[fileType] || 0
+        prev.fileType[fileType] = count + 1
+      } else {
         const name = fileItem.replace(/^\$|\.xml$/g, '')
-        const result = await readXml(path.join(baseDir, fileItem))
-        // 颜色
-        if (fileItem?.startsWith('$')) {
-          const j = gradient2def(name, result)
-          colorContainer.set(name, j)
-        } else {
-          const text = v2svg(result)
-          // console.log('ddd', name, text);
-          if (text) {
-            writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
+        const result = await readXml(path.join(baseDir, fileItem));
+        const xmlType = Object.keys(result)[0];
+        
+        if ('gradient' === xmlType) {
+          const { type, result: gradientResult } = gradient2def(name, result) || {}
+          if (gradientResult) {
+            colorContainer.set(name, gradientResult)
           }
+          if (type) {
+            const count = prev.gradient[type] || 0
+            prev.gradient[type] = count + 1
+          }
+        } else if ('vector' === xmlType) {
+          prev.vector.push({
+            type: xmlType,
+            name,
+            result
+          })
+        } else {
+          // count
+          const count = prev.xmlType[xmlType] || 0
+          prev.xmlType[xmlType] = count + 1
         }
+
       }
-    })
+      return prev;
 
-    // console.log('===> ', colorContainer.entries());
+    }, { fileType: {}, xmlType: {}, vector: [], gradient: {} })
+    // 其他文件，只做统计
+    const all = await currentListObj;
 
+    if (all?.vector) {
+      console.log('Result ===> ',);
+      all.vector.forEach(x => {
+        const { name, result } = x;
+        const text = v2svg(result)
+        // console.log('ddd', name, text);
+        if (text) {
+          writeFile(`${outDir}/${name}.svg`, text, 'utf8', () => { });
+        }
+      })
+      console.log(`.XML Has been processed:`);
+      console.table([
+        {
+          type: 'VECTOR',
+          count: all?.vector?.length
+        }
+        , ... (Object.entries(all?.gradient).map(([type, count]) => ({ type: type.toUpperCase() + ' GRADIENT', count })))
+      ]);
+
+    }
+    if (all?.fileType) {
+      console.log(`Other FileType are Skipped:`, all?.fileType);
+      // console.table(Object.entries(all?.fileType).map(([type, count]) => ({ type, count })));
+    }
+    if (all?.xmlType) {
+      console.log(`Other Tag are Skipped:`, all?.xmlType);
+      // console.table(Object.entries(all?.xmlType).map(([xmlTag, count]) => ({ xmlTag, count })));
+    }
 
   })
 
