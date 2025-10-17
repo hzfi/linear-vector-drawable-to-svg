@@ -62,6 +62,8 @@ const readXml = async (file) => {
     const result = await parser.parseStringPromise(content)
     return result
   } catch (error) {
+    const content = readFileSync(file, 'utf-8')
+    console.error('-readXml error content: ', content);
     console.log('-readXml error: ', error);
   }
 }
@@ -518,13 +520,14 @@ const main = () => {
     // console.log('f', f);
     const currentListObj = f.reduce(async (p, fileItem) => {
       const fileType = fileItem.split('.').at(-1);
-      const prev = await p;
+      const prev = await p;      
       if (fileType !== 'xml') {
         const count = prev.fileType[fileType] || 0
         prev.fileType[fileType] = count + 1
       } else {
         const name = fileItem.replace(/^\$|\.xml$/g, '')
         const result = await readXml(path.join(baseDir, fileItem));
+        if (!result) return prev
         const xmlType = Object.keys(result)[0];
         
         if ('gradient' === xmlType) {
