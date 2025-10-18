@@ -97,6 +97,10 @@ const color2c = str => {
     return {
       c: '#' + [r, g, b].join(''),
     }
+  } else if (/^#[0-9a-fA-F]{3}$/g.test(str)) {
+    return {
+      c: str
+    }
   } else {
     return {}
   }
@@ -160,10 +164,13 @@ const gradient2def = (name, json) => {
     const { $: meta, item } = gradient;
     let result = ''
 
-    const stopArr = item.map(obj => {
+
+    const stopArr = item?.map(obj => {
       const { $: x } = obj;
+      // console.log('===,' , x );
       const offset = x[GLOB_CONFIG.ns + ':offset']
-      const { c: color, alpha } = color2c(x[GLOB_CONFIG.ns + ':color'])
+      const { color, alpha } = outputColor(x[GLOB_CONFIG.ns + ':color'])
+      // console.log('===,' , x, color );
       if (!color) return ''
       const attr = {
         'stop-color': color
@@ -175,7 +182,7 @@ const gradient2def = (name, json) => {
         attr['offset'] = Number(offset)
       }
       return `${tab(3)}<stop ${attr2Str(attr)} />`
-    })
+    }) || []
 
     if (meta[GLOB_CONFIG.ns + ':type'] === 'linear') {
       const x1 = Number(meta[GLOB_CONFIG.ns + ':startX'])
@@ -344,14 +351,14 @@ ${tab(2)}</clipPath>`
             const translateX = getVal('translateX')
             const translateY = getVal('translateY')
             const tf = []
+            if (rotation || (pivotX || pivotY)) {
+              tf.push(`rotate(${rotation},${pivotX || 0},${pivotY || 0})`)
+            }
             if (translateX || translateY) {
               tf.push(`translate(${translateX || 0} ${translateY || 0})`)
             }
             if (scaleX || scaleY) {
               tf.push(`scale(${scaleX || 1} ${scaleY || 1})`)
-            }
-            if (rotation && (pivotX || pivotY)) {
-              tf.push(`rotate(${rotation},${pivotX || 0},${pivotY || 0})`)
             }
             if (name) {
               attr.name = name;
@@ -520,7 +527,7 @@ const main = () => {
     // console.log('f', f);
     const currentListObj = f.reduce(async (p, fileItem) => {
       const fileType = fileItem.split('.').at(-1);
-      const prev = await p;      
+      const prev = await p;
       if (fileType !== 'xml') {
         const count = prev.fileType[fileType] || 0
         prev.fileType[fileType] = count + 1
@@ -529,7 +536,7 @@ const main = () => {
         const result = await readXml(path.join(baseDir, fileItem));
         if (!result) return prev
         const xmlType = Object.keys(result)[0];
-        
+
         if ('gradient' === xmlType) {
           const { type, result: gradientResult } = gradient2def(name, result) || {}
           if (gradientResult) {
@@ -578,11 +585,11 @@ const main = () => {
       ]);
 
     }
-    if (all?.fileType) {
+    if (all?.fileType && Object.keys(all?.fileType)?.length) {
       console.log(`Other FileType are Skipped:`, all?.fileType);
       // console.table(Object.entries(all?.fileType).map(([type, count]) => ({ type, count })));
     }
-    if (all?.xmlType) {
+    if (all?.xmlType && Object.keys(all?.xmlType)?.length) {
       console.log(`Other Tag are Skipped:`, all?.xmlType);
       // console.table(Object.entries(all?.xmlType).map(([xmlTag, count]) => ({ xmlTag, count })));
     }
