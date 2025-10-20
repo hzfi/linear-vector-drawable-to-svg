@@ -107,7 +107,7 @@ const color2c = str => {
 }
 
 const outputColor = (color) => {
-
+  // console.log('============', color);
   let currentColor = color;
   // 将颜色引用转为绝对颜色
   if (currentColor?.startsWith('@color/')) {
@@ -162,14 +162,14 @@ const gradient2def = (name, json) => {
   const gradient = json.gradient
   if (gradient) {
     const { $: meta, item } = gradient;
+    const tempNs = majoritykey2Ns(meta)
     let result = ''
-
-
     const stopArr = item?.map(obj => {
       const { $: x } = obj;
-      // console.log('===,' , x );
-      const offset = x[GLOB_CONFIG.ns + ':offset']
-      const { color, alpha } = outputColor(x[GLOB_CONFIG.ns + ':color'])
+      // console.log('===,', obj, name);
+      const offset = x[tempNs + ':offset']
+      // console.log('offset', offset, x, tempNs);
+      const { color, alpha } = outputColor(x[tempNs + ':color'])
       // console.log('===,' , x, color );
       if (!color) return ''
       const attr = {
@@ -184,26 +184,26 @@ const gradient2def = (name, json) => {
       return `${tab(3)}<stop ${attr2Str(attr)} />`
     }) || []
 
-    if (meta[GLOB_CONFIG.ns + ':type'] === 'linear') {
-      const x1 = Number(meta[GLOB_CONFIG.ns + ':startX'])
-      const x2 = Number(meta[GLOB_CONFIG.ns + ':endX'])
-      const y1 = Number(meta[GLOB_CONFIG.ns + ':startY'])
-      const y2 = Number(meta[GLOB_CONFIG.ns + ':endY'])
+    if (meta[tempNs + ':type'] === 'linear') {
+      const x1 = Number(meta[tempNs + ':startX'])
+      const x2 = Number(meta[tempNs + ':endX'])
+      const y1 = Number(meta[tempNs + ':startY'])
+      const y2 = Number(meta[tempNs + ':endY'])
       result = `${tab(2)}<linearGradient gradientUnits="userSpaceOnUse" id="${name}" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}" >
 ${stopArr.join('\n')}
 ${tab(2)}</linearGradient>`
 
-    } else if (meta[GLOB_CONFIG.ns + ':type'] === 'radial') {
-      const cx = Number(meta[GLOB_CONFIG.ns + ':centerX'])
-      const cy = Number(meta[GLOB_CONFIG.ns + ':centerY'])
-      const r = Number(meta[GLOB_CONFIG.ns + ':gradientRadius'])
+    } else if (meta[tempNs + ':type'] === 'radial') {
+      const cx = Number(meta[tempNs + ':centerX'])
+      const cy = Number(meta[tempNs + ':centerY'])
+      const r = Number(meta[tempNs + ':gradientRadius'])
       result = `${tab(2)}<radialGradient gradientUnits="userSpaceOnUse" id="${name}" cx="${cx}" cy="${cy}" r="${r}" >
 ${stopArr.join('\n')}
 ${tab(2)}</radialGradient>`
 
     }
     return {
-      type: meta[GLOB_CONFIG.ns + ':type'],
+      type: meta[tempNs + ':type'],
       result
     }
   }
@@ -226,14 +226,20 @@ const getMajoritykey = (arr) => {
 }
 
 
+const majoritykey2Ns = (meta) => {
+  const metaKeyArr = Object.keys(meta).map(x => x.split(':')[0])
+  const globalKey = getMajoritykey(metaKeyArr)
+  return globalKey
+
+}
+
 const v2svg = (json) => {
   const vector = json.vector
   if (vector) {
     // console.log('vector', vector);
 
     const { $: meta } = vector;
-    const metaKeyArr = Object.keys(meta).map(x => x.split(':')[0])
-    const globalKey = getMajoritykey(metaKeyArr)
+    const globalKey = majoritykey2Ns(meta)
     GLOB_CONFIG.ns = globalKey;
     // console.log('GLOB_CONFIG.ns', GLOB_CONFIG);
 
