@@ -1,6 +1,6 @@
 {
   "name": "lvd2svg",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "linear-gradient or radial-gradient android vector drawable to SVG converter.",
   "keywords": [
     "vector-drawable",
