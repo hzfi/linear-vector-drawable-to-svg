@@ -296,11 +296,23 @@ const v2svg = (json) => {
         if (x[GLOB_CONFIG.ns + ':strokeWidth']) {
           attr['stroke-width'] = x[GLOB_CONFIG.ns + ':strokeWidth']
         }
-        if (x[GLOB_CONFIG.ns + ':strokeAlpha']) {
-          attr['stroke-opacity'] = x[GLOB_CONFIG.ns + ':strokeAlpha']
+
+        const defineStrokeAlpha = x[GLOB_CONFIG.ns + ':strokeAlpha']
+        if (defineStrokeAlpha) {
+          if (attr['stroke-opacity'] !== undefined) {
+            attr['stroke-opacity'] = defineStrokeAlpha * attr['stroke-opacity']
+          } else {
+            attr['stroke-opacity'] = defineStrokeAlpha
+          }
         }
-        if (x[GLOB_CONFIG.ns + ':fillAlpha']) {
-          attr['fill-opacity'] = Number(x[GLOB_CONFIG.ns + ':fillAlpha'])
+
+        const defineFillAlpha = x[GLOB_CONFIG.ns + ':fillAlpha']
+        if (defineFillAlpha) {
+          if (attr['fill-opacity'] !== undefined) {
+            attr['fill-opacity'] = defineFillAlpha * attr['fill-opacity']
+          } else {
+            attr['fill-opacity'] = defineFillAlpha
+          }
         }
 
         if (x[GLOB_CONFIG.ns + ':strokeLineCap']) {
@@ -358,7 +370,7 @@ ${tab(2)}</clipPath>`
             const translateY = getVal('translateY')
             const tf = []
             if (rotation || (pivotX || pivotY)) {
-              tf.push(`rotate(${rotation},${pivotX || 0},${pivotY || 0})`)
+              tf.push(`rotate(${rotation || 0},${pivotX || 0},${pivotY || 0})`)
             }
             if (translateX || translateY) {
               tf.push(`translate(${translateX || 0} ${translateY || 0})`)
