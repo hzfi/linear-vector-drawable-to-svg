@@ -102,7 +102,10 @@ const color2c = str => {
       c: str
     }
   } else {
-    return {}
+    return {
+      c: '#000000',
+      alpha: .5
+    }
   }
 }
 
