@@ -252,6 +252,8 @@ const v2svg = (json) => {
       let content = ''
       path?.forEach((obj) => {
         const { $: x } = obj;
+        if (!x) return;
+        
 
         const attr = {
           d: x[GLOB_CONFIG.ns + ':pathData']
